@@ -19,6 +19,7 @@ class MyApp extends StatelessWidget {
           child: Column(
             children: [
               MagicDropdownSearch(
+                itemsCount: 11,
                 // label: 'Search',
                 onChanged: (value) {
                   print('Selected value: $value');
@@ -55,6 +56,7 @@ class MyApp extends StatelessWidget {
               ),
               Spacer(),
               MagicDropdownSearch(
+                itemsCount: 6,
                 // label: 'Search',
                 onChanged: (value) {
                   print('Selected value: $value');

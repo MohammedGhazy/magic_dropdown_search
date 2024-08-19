@@ -14,10 +14,12 @@ class MagicDropdownSearch extends StatefulWidget {
   final InputDecoration? buttonDecoration;
   final InputDecoration? searchDecoration;
   final DropDownBoxDecoration? dropdownBoxDecoration;
+  final int itemsCount;
   final Widget Function(String, bool)? itemBuilder;
 
   const MagicDropdownSearch({
     required this.onChanged,
+    required this.itemsCount,
     required this.onChangedSearch,
     this.dropdownItems = const [],
     this.initValue,
@@ -88,19 +90,33 @@ class _MagicDropdownSearchState extends State<MagicDropdownSearch> {
         }
         setState(() {});
       },
-      child: TextFormField(
-        key: dropdownGlobalKey,
-        style: widget.buttonDecoration?.hintStyle ??Theme.of(context).textTheme.labelMedium!.copyWith(
-              fontWeight: FontWeight.w400,
-              fontSize: isSelecting == true ? null : 11,
-              color: isSelecting
-                  ? const Color(0xff111111)
-                  : const Color(0xff767676),
-            ),
-        controller: TextEditingController(text: value),
-        minLines: 1,
-        maxLines: 5,
-        decoration: decoration,
+      child: Column(
+        children: [
+          if (widget.itemsCount > 10) ...[
+            Text(
+              "إبحث من ضمن ${widget.itemsCount} عنصر ",
+              style: const TextStyle(color: Colors.black, fontSize: 16),
+            )
+          ],
+          const SizedBox(
+            height: 10.0,
+          ),
+          TextFormField(
+            key: dropdownGlobalKey,
+            style: widget.buttonDecoration?.hintStyle ??
+                Theme.of(context).textTheme.labelMedium!.copyWith(
+                      fontWeight: FontWeight.w400,
+                      fontSize: isSelecting == true ? null : 11,
+                      color: isSelecting
+                          ? const Color(0xff111111)
+                          : const Color(0xff767676),
+                    ),
+            controller: TextEditingController(text: value),
+            minLines: 1,
+            maxLines: 5,
+            decoration: decoration,
+          ),
+        ],
       ),
     );
   }

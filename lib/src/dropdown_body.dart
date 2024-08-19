@@ -2,6 +2,7 @@ part of '../magic_dropdown_search.dart';
 
 @immutable
 class DropDownSearchBody extends StatefulWidget {
+  final int itemsCount;
   final String? initValue;
   final ValueChanged<String?>? onChanged;
   final double? dropdownHeight;
@@ -16,6 +17,7 @@ class DropDownSearchBody extends StatefulWidget {
 
   const DropDownSearchBody({
     super.key,
+    required this.itemsCount,
     this.searchDecoration,
     this.initValue,
     this.onChanged,
@@ -131,6 +133,18 @@ class _DropDownSearchBodyState extends State<DropDownSearchBody> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (widget.itemsCount > 10) ...[
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Text(
+                  "إبحث من ضمن ${widget.itemsCount} عنصر ",
+                  style: const TextStyle(color: Colors.black, fontSize: 16),
+                ),
+              ),
+            )
+          ],
           //TODO: Search Bar
           _customSearchFormField(),
           const SizedBox(height: 10),

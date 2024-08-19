@@ -65,6 +65,7 @@ class _MagicDropdownSearchState extends State<MagicDropdownSearch> {
         String? v = await DropDownSearchDialog.show(
           context,
           DropDownSearchBody(
+            itemsCount: widget.itemsCount,
             onChanged: widget.onChanged,
             onChangedSearch: widget.onChangedSearch,
             dropdownItems: widget.dropdownItems,
@@ -90,33 +91,20 @@ class _MagicDropdownSearchState extends State<MagicDropdownSearch> {
         }
         setState(() {});
       },
-      child: Column(
-        children: [
-          if (widget.itemsCount > 10) ...[
-            Text(
-              "إبحث من ضمن ${widget.itemsCount} عنصر ",
-              style: const TextStyle(color: Colors.black, fontSize: 16),
-            )
-          ],
-          const SizedBox(
-            height: 10.0,
-          ),
-          TextFormField(
-            key: dropdownGlobalKey,
-            style: widget.buttonDecoration?.hintStyle ??
-                Theme.of(context).textTheme.labelMedium!.copyWith(
-                      fontWeight: FontWeight.w400,
-                      fontSize: isSelecting == true ? null : 11,
-                      color: isSelecting
-                          ? const Color(0xff111111)
-                          : const Color(0xff767676),
-                    ),
-            controller: TextEditingController(text: value),
-            minLines: 1,
-            maxLines: 5,
-            decoration: decoration,
-          ),
-        ],
+      child: TextFormField(
+        key: dropdownGlobalKey,
+        style: widget.buttonDecoration?.hintStyle ??
+            Theme.of(context).textTheme.labelMedium!.copyWith(
+                  fontWeight: FontWeight.w400,
+                  fontSize: isSelecting == true ? null : 11,
+                  color: isSelecting
+                      ? const Color(0xff111111)
+                      : const Color(0xff767676),
+                ),
+        controller: TextEditingController(text: value),
+        minLines: 1,
+        maxLines: 5,
+        decoration: decoration,
       ),
     );
   }

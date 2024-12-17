@@ -5,6 +5,7 @@ part of '../magic_dropdown_search.dart';
 class DropDownSearchBody extends StatefulWidget {
   final int itemsCount;
   final String? initValue;
+
   final ValueChanged<String?>? onChanged;
   final double? dropdownHeight;
   final double? itemHeight;

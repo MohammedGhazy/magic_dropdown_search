@@ -1,5 +1,6 @@
 part of '../magic_dropdown_search.dart';
 
+
 @immutable
 class DropDownSearchBody extends StatefulWidget {
   final int itemsCount;
@@ -40,39 +41,36 @@ class _DropDownSearchBodyState extends State<DropDownSearchBody> {
   late TextEditingController _searchController;
   String searchQuery = '';
   bool isSearching = false;
-  ValueNotifier<List<String>> searchItemsNotifier =
-      ValueNotifier<List<String>>([]);
+  bool isDisposed = false;
+  ValueNotifier<List<String>> searchItemsNotifier = ValueNotifier<List<String>>([]);
+  Completer<void>? _searchCompleter;
 
   @override
   void initState() {
+    super.initState();
     _initValue();
     _searchController = TextEditingController();
     onChangSearch('');
-    super.initState();
+  }
+
+  @override
+  void dispose() {
+    isDisposed = true;
+    _searchCompleter?.complete();
+    _searchCompleter = null;
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _initValue() {
-    if (mounted) {
-      value = widget.initValue;
-      searchItemsNotifier.value = widget.dropdownItems;
-      if (widget.isCanNotSelect) {
-        searchItemsNotifier.value = [
-          widget.notSelectedText,
-          ...widget.dropdownItems
-        ];
-      }
-      setState(() {});
+    value = widget.initValue;
+    searchItemsNotifier.value = widget.dropdownItems;
+    if (widget.isCanNotSelect) {
+      searchItemsNotifier.value = [
+        widget.notSelectedText,
+        ...widget.dropdownItems,
+      ];
     }
-  }
-
-  void onChanged(String? v) {
-    value = v;
-    if (v == widget.notSelectedText) {
-      widget.onChanged!("");
-    } else {
-      widget.onChanged!(v);
-    }
-    setState(() {});
   }
 
   Future<void> onChangSearch(String value) async {
@@ -80,50 +78,49 @@ class _DropDownSearchBodyState extends State<DropDownSearchBody> {
       searchQuery = value;
       isSearching = true;
       setState(() {});
-      searchItemsNotifier.value = await widget.onChangedSearch(value);
+
+      _searchCompleter?.complete();
+      _searchCompleter = Completer<void>();
+
+      final results = await widget.onChangedSearch(value);
+      if (_searchCompleter!.isCompleted || isDisposed) return;
+
+      searchItemsNotifier.value = results;
       if (widget.isCanNotSelect) {
         searchItemsNotifier.value = [
           widget.notSelectedText,
-          ...searchItemsNotifier.value
+          ...searchItemsNotifier.value,
         ];
       }
-      isSearching = false;
-      setState(() {});
     } catch (e, s) {
       debugPrint('Error on search: $e $s');
+    } finally {
+      if (!isDisposed) {
+        isSearching = false;
+        setState(() {});
+      }
     }
   }
 
   Future<void> onClearSearch() async {
-    try {
-      searchQuery = '';
-      isSearching = true;
-      _searchController.clear();
-      setState(() {});
-      searchItemsNotifier.value = await widget.onChangedSearch('');
-      if (widget.isCanNotSelect) {
-        searchItemsNotifier.value = [
-          widget.notSelectedText,
-          ...searchItemsNotifier.value
-        ];
-      }
-      isSearching = false;
-      setState(() {});
-    } catch (e, s) {
-      debugPrint('Error on clear search: $e $s');
+    await onChangSearch('');
+    _searchController.clear();
+  }
+
+  void onChanged(String? v) {
+    value = v;
+    if (v == widget.notSelectedText) {
+      widget.onChanged?.call("");
+    } else {
+      widget.onChanged?.call(v);
     }
+    setState(() {});
   }
 
   bool get _checkIsEmptyList {
-    if (searchItemsNotifier.value.isEmpty) {
-      return true;
-    } else {
-      if (searchItemsNotifier.value.length == 1 &&
-          searchItemsNotifier.value[0] == widget.notSelectedText) {
-        return true;
-      }
-      return false;
-    }
+    return searchItemsNotifier.value.isEmpty ||
+        (searchItemsNotifier.value.length == 1 &&
+            searchItemsNotifier.value[0] == widget.notSelectedText);
   }
 
   @override
@@ -133,7 +130,7 @@ class _DropDownSearchBodyState extends State<DropDownSearchBody> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (widget.itemsCount > 10) ...[
+          if (widget.itemsCount > 10)
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: Align(
@@ -143,12 +140,9 @@ class _DropDownSearchBodyState extends State<DropDownSearchBody> {
                   style: const TextStyle(color: Colors.black, fontSize: 16),
                 ),
               ),
-            )
-          ],
-          //TODO: Search Bar
-          _customSearchFormField(),
+            ),
+          _buildSearchField(),
           const SizedBox(height: 10),
-          //TODO: List of Items
           Expanded(
             child: ValueListenableBuilder<List<String>>(
               valueListenable: searchItemsNotifier,
@@ -157,7 +151,6 @@ class _DropDownSearchBodyState extends State<DropDownSearchBody> {
                 if (_checkIsEmptyList) return _emptyList();
                 return ListView.separated(
                   itemCount: items.length,
-                  padding: const EdgeInsets.symmetric(vertical: 5),
                   separatorBuilder: (context, index) => const Divider(),
                   itemBuilder: (context, index) {
                     final item = items[index];
@@ -169,7 +162,7 @@ class _DropDownSearchBodyState extends State<DropDownSearchBody> {
                       },
                       child: widget.itemBuilder != null
                           ? widget.itemBuilder!(item, isSelected)
-                          : _customListView(item, isSelected),
+                          : _buildListItem(item, isSelected),
                     );
                   },
                 );
@@ -181,21 +174,25 @@ class _DropDownSearchBodyState extends State<DropDownSearchBody> {
     );
   }
 
-  Widget _customSearchFormField() {
+  Widget _buildSearchField() {
     return Container(
       padding: const EdgeInsets.only(top: 5),
       child: TextFormField(
         onChanged: onChangSearch,
         controller: _searchController,
-        onTapOutside: (details) {
-          FocusManager.instance.primaryFocus?.unfocus();
-        },
-        decoration: decoration,
+        decoration: widget.searchDecoration ??
+            InputDecoration(
+              hintText: 'Search...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Colors.grey),
+              ),
+            ),
       ),
     );
   }
 
-  Widget _customListView(String item, bool isSelected) {
+  Widget _buildListItem(String item, bool isSelected) {
     return Container(
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
@@ -206,32 +203,21 @@ class _DropDownSearchBodyState extends State<DropDownSearchBody> {
       child: Row(
         children: [
           if (isSelected) ...[
-            const Icon(
-              FontAwesomeIcons.check,
-              size: 16,
-              color: Color(0xff111111),
-            ),
+            const Icon(Icons.check, size: 16, color: Colors.black),
             const SizedBox(width: 7.5),
           ],
           Expanded(
             child: Text(
               item,
               maxLines: 3,
-              style: Theme.of(context).textTheme.labelMedium!.copyWith(
-                  color: const Color(0xff111111), fontWeight: FontWeight.w400),
+              style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _emptyList() {
-    if (widget.empty != null) {
-      return widget.empty!;
-    }
-    return const Center(
-      child: Text('No items found'),
     );
   }
 
@@ -259,64 +245,15 @@ class _DropDownSearchBodyState extends State<DropDownSearchBody> {
     );
   }
 
-  InputDecoration get decoration {
-    if (widget.searchDecoration != null) {
-      return widget.searchDecoration!.copyWith(
-        contentPadding:
-            widget.searchDecoration?.contentPadding ?? EdgeInsets.zero,
-        hintStyle: widget.searchDecoration?.hintStyle ??
-            const TextStyle(color: Color(0xff99999999)),
-        prefixIcon: widget.searchDecoration?.prefixIcon ??
-            const Icon(Icons.search, color: Color(0xff99999999), size: 23),
-        suffixIcon: AnimatedOpacity(
-          opacity: searchQuery.isNotEmpty ? 1 : 0,
-          duration: const Duration(milliseconds: 250),
-          child: IconButton(
-            onPressed: onClearSearch,
-            icon: const Icon(
-              Icons.clear,
-              size: 20,
-              color: Color(0xff99999999),
-            ),
-          ),
-        ),
-        border: widget.searchDecoration?.border ?? border,
-        enabledBorder: widget.searchDecoration?.enabledBorder ?? border,
-        disabledBorder: widget.searchDecoration?.disabledBorder ?? border,
-        focusedBorder: widget.searchDecoration?.focusedBorder ?? border,
-      );
-    } else {
-      return InputDecoration(
-        hintText: 'Search',
-        contentPadding: EdgeInsets.zero,
-        filled: true,
-        fillColor: Colors.white,
-        hintStyle: const TextStyle(color: Color(0xff99999999)),
-        prefixIcon:
-            const Icon(Icons.search, color: Color(0xff99999999), size: 23),
-        suffixIcon: AnimatedOpacity(
-          opacity: searchQuery.isNotEmpty ? 1 : 0,
-          duration: const Duration(milliseconds: 250),
-          child: IconButton(
-            onPressed: onClearSearch,
-            icon: const Icon(
-              Icons.clear,
-              size: 20,
-              color: Color(0xff99999999),
-            ),
-          ),
-        ),
-        border: border,
-        enabledBorder: border,
-        disabledBorder: border,
-      );
+  Widget _emptyList() {
+    if (widget.empty != null) {
+      return widget.empty!;
     }
-  }
-
-  InputBorder get border {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide.none,
+    return const Center(
+      child: Text('No items found'),
     );
   }
 }
+
+
+
